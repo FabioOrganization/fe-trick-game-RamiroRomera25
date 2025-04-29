@@ -56,6 +56,11 @@ async function obtenerMazoPorFetch() {
      * 3. Usar la función `mezclar` para desordenar el array de cartas.
      * 4. Asignar el array mezclado a la variable global `mazo`.
      */
+    await fetch(API_CARTAS)
+        .then(res => res.json())
+        .then(data => {
+            globalThis.mazo = mezclar(data);
+        })
 }
 
 /**
@@ -76,6 +81,18 @@ async function guardarPartidaFetch(ganador) {
      * 3. Enviar el objeto `partida` como cuerpo de la solicitud en formato JSON.
      * 4. Asegurarse de incluir el encabezado `Content-Type: application/json`.
      */
+    const partida = {
+        ganador: ganador,
+        jugadas: globalThis.rondas,
+        fecha: new Date().toISOString()
+    }
+    fetch(API_PARTIDAS, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(partida)
+    })
 }
 
 /**
@@ -91,6 +108,13 @@ async function getHistorialPartidasFetch() {
      * 3. Asignar el historial obtenido a la variable global `historialPartidas`.
      * 4. Llamar a la función `mostrarEstado` para actualizar la interfaz.
      */
+
+    await fetch(API_PARTIDAS)
+        .then(res => res.json())
+        .then(data => globalThis.historialPartidas = data)
+
+    mostrarEstado()
+
 }
 
 /**
@@ -105,6 +129,10 @@ function repartirManos() {
      * 3. Extraer otras 3 cartas del mazo y asignarlas al jugador 2 (`manos[1]`).
      * 4. Asegurarse de que las cartas extraídas se eliminen del mazo.
      */
+
+    globalThis.manos[0] = globalThis.mazo.splice(0, 3)
+    globalThis.manos[1] = globalThis.mazo.splice(0, 3)
+
 }
 
 /**
@@ -121,6 +149,19 @@ function jerarquiaCarta(carta) {
      * 3. Si la carta coincide, devolver el índice correspondiente.
      * 4. Si no coincide, devolver el índice de la peor jerarquía (`JERARQUIA.length - 1`).
      */
+    for (let i = 0; i < JERARQUIA.length; i++) {
+        const jerarquiaKey = JERARQUIA[i]
+        if (jerarquiaKey[0] === carta.valor && jerarquiaKey[1] === carta.palo) {
+            return i;
+        }
+    }
+    for (let i = 0; i < JERARQUIA.length; i++) {
+        const jerarquiaKey = JERARQUIA[i]
+        if (jerarquiaKey[0] === carta.valor) {
+            return i;
+        }
+    }
+    return JERARQUIA.length-1
 }
 
 /**
@@ -141,9 +182,47 @@ function jugarCarta(jugador, cartaIndex) {
      * 4. Si ambos jugadores ya jugaron, determinar el ganador con `ganadorRonda`.
      * 5. Sumar un punto al ganador (si no es empate) en `puntajeRondas`.
      * 6. Cambiar el turno al otro jugador (`turno = 1 - jugador`).
+     *
+     *
+     *
      * 7. Llamar a `mostrarEstado` para actualizar la interfaz.
      * 8. Si hay un ganador de la partida (`ganadorPartida`), guardar la partida y refrescar el historial.
      */
+        // FIXME: Pondria los pasos que ya fueron realizados (7 y 8) es una boludez.
+        //  Pero si vamos por agregarle dificultad esta bien
+
+    const cartaElegida = globalThis.manos[jugador].splice(cartaIndex, 1)[0];
+
+    // FIXME: Como se si la ultima ronda se jugo algo o no ? Al principio es vacio pero pensando en la ejecucion posterior
+    //  no se como esta conformado el objeto de la ronda como para saber que paso.
+
+    let ultimaRonda = globalThis.rondas[globalThis.rondas.length - 1]
+    let isNewRound = false;
+    if (globalThis.rondas.length === 0) {
+        globalThis.rondas.push({ carta1: null, carta2: null });
+        ultimaRonda = globalThis.rondas[globalThis.rondas.length - 1];
+        isNewRound = true
+    } else if (ultimaRonda.carta2 !== null && ultimaRonda.carta1 !== null) {
+        globalThis.rondas.push({ carta1: null, carta2: null })
+        isNewRound = true
+        ultimaRonda = globalThis.rondas[globalThis.rondas.length - 1];
+    }
+    // FIXME: Cuando llegas al paso 3 podes llegar a entender como es la ronda. Osea podemos dejar para que sea un toque
+    //  mas de dificultad y el que es vivo va y le pega un get el json-server
+
+    if (isNewRound) {
+        ultimaRonda.carta1 = cartaElegida;
+    } else {
+        ultimaRonda.carta2 = cartaElegida;
+
+        // FIXME: En el punto 5 dice que le sumemos los puntos pero no dice que le declaremos el .ganador a la ronda
+        let playerIndex = ganadorRonda(ultimaRonda);
+        globalThis.puntajeRondas[playerIndex] ++;
+        ultimaRonda.ganador = playerIndex;
+    }
+    globalThis.turno = 1 - jugador;
+
+
 
     mostrarEstado();
     // Chequea si terminó la partida, si sí guarda resultado y refresca historial
@@ -169,6 +248,17 @@ function ganadorRonda(ronda) {
      *    - Si `carta1` es mejor, devolver 0 (gana J1).
      *    - Si `carta2` es mejor, devolver 1 (gana J2).
      */
+
+    const firstCartaJerarquia = jerarquiaCarta(ronda.carta1)
+    const secondCartaJerarquia = jerarquiaCarta(ronda.carta2)
+
+    if (firstCartaJerarquia < secondCartaJerarquia) {
+        return 0;
+    } else if (secondCartaJerarquia < firstCartaJerarquia) {
+        return 1;
+    } else {
+        return -1;
+    }
 }
 
 /**
@@ -185,6 +275,15 @@ function ganadorPartida() {
      *    - Si es así, devolver 1 (gana J2).
      * 3. Si ninguno ha ganado, devolver null.
      */
+    const pointsJ1 = globalThis.puntajeRondas[0]
+    const pointsJ2 = globalThis.puntajeRondas[1]
+    if (pointsJ1 >= 2) {
+        return 0;
+    } else if (pointsJ2 >= 2) {
+        return 1;
+    } else {
+        return null;
+    }
 }
 
 /**
@@ -200,6 +299,14 @@ function mezclar(arr) {
      * 3. En cada iteración, intercambiar el elemento actual con uno aleatorio.
      * 4. Devolver el array mezclado.
      */
+    // FIXME: Estoy seguro que van a preguntar que es fisher-yates ?
+    //  Yo personalmente no lo tenia claro, busque asi en internet literalmente "fisher-yates javascript" y salio
+
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr
 }
 
 /**
