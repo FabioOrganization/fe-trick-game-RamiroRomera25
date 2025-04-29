@@ -188,7 +188,8 @@ function jugarCarta(jugador, cartaIndex) {
      * 7. Llamar a `mostrarEstado` para actualizar la interfaz.
      * 8. Si hay un ganador de la partida (`ganadorPartida`), guardar la partida y refrescar el historial.
      */
-    // FIXME: Pondria los pasos que ya fueron realizados (7 y 8)
+        // FIXME: Pondria los pasos que ya fueron realizados (7 y 8) es una boludez.
+        //  Pero si vamos por agregarle dificultad esta bien
 
     const cartaElegida = globalThis.manos[jugador].splice(cartaIndex, 1)[0];
 
@@ -298,7 +299,8 @@ function mezclar(arr) {
      * 3. En cada iteración, intercambiar el elemento actual con uno aleatorio.
      * 4. Devolver el array mezclado.
      */
-    // FIXME: Que es fisher-yates ?
+    // FIXME: Estoy seguro que van a preguntar que es fisher-yates ?
+    //  Yo personalmente no lo tenia claro, busque asi en internet literalmente "fisher-yates javascript" y salio
 
     for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
